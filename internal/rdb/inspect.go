@@ -1622,20 +1622,23 @@ func (r *RDB) ListSchedulerEntries() ([]*base.SchedulerEntry, error) {
 	fmt.Println("start to record log")
 	now := r.clock.Now()
 	res, err := listSchedulerKeysCmd.Run(context.Background(), r.client, []string{base.AllSchedulers}, now.Unix()).Result()
+	fmt.Printf("res is %s \n", res)
+	fmt.Printf("err is %s \n", err)
 	if err != nil {
 		fmt.Printf("listSchedulerKeysCmd err: %s", err.Error())
 		return nil, err
 	}
 	keys, err := cast.ToStringSliceE(res)
+	fmt.Printf("keys is %s \n", keys)
 	if err != nil {
-		fmt.Printf("ToStringSliceE err: %s", err.Error())
+		fmt.Printf("ToStringSliceE err: %s\n", err.Error())
 		return nil, err
 	}
 	var entries []*base.SchedulerEntry
 	for _, key := range keys {
 		data, err := r.client.LRange(context.Background(), key, 0, -1).Result()
 		if err != nil {
-			fmt.Printf("LRange err: %s", err.Error())
+			fmt.Printf("LRange err: %s \n", err.Error())
 			continue // skip bad data
 		}
 		fmt.Printf("data is: %s", data)
@@ -1648,7 +1651,7 @@ func (r *RDB) ListSchedulerEntries() ([]*base.SchedulerEntry, error) {
 			entries = append(entries, e)
 		}
 	}
-	fmt.Printf("entries is %d", len(entries))
+	fmt.Printf("entries is %d \n", len(entries))
 	return entries, nil
 }
 

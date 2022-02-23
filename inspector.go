@@ -6,15 +6,9 @@ package asynq
 
 import (
 	"fmt"
-	zaplog "go.easyops.local/slog/zap"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"strconv"
 	"strings"
 	"time"
-
-	"go.easyops.local/slog"
-	"gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/hibiken/asynq/internal/base"
@@ -26,28 +20,6 @@ import (
 // queues and tasks.
 type Inspector struct {
 	rdb *rdb.RDB
-}
-
-var logging slog.Logger
-
-type LogConfig struct {
-	Level   zap.AtomicLevel    `yaml:"level"`
-	Logfile *lumberjack.Logger `yaml:"logfile"`
-}
-
-func SetupLogging() slog.Logger {
-	lc := LogConfig{
-		Level:   zap.AtomicLevel{},
-		Logfile: &lumberjack.Logger{Filename: "log/asynq.log"},
-	}
-	w := zapcore.AddSync(lc.Logfile)
-	core := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig()),
-		w,
-		lc.Level,
-	)
-	logger := zap.New(core, zap.AddCaller())
-	return zaplog.Wrap(logger)
 }
 
 // New returns a new instance of Inspector.
@@ -823,11 +795,10 @@ type SchedulerEntry struct {
 // currently running schedulers.
 func (i *Inspector) SchedulerEntries() ([]*SchedulerEntry, error) {
 	var entries []*SchedulerEntry
-	logging = SetupLogging()
-	logging.Errorf("start to record log file")
+	fmt.Printf("start to record log file")
 	res, err := i.rdb.ListSchedulerEntries()
 	if err != nil {
-		logging.Errorf("ListSchedulerEntries err:%s", err.Error())
+		fmt.Errorf("ListSchedulerEntries err:%s", err.Error())
 		return nil, err
 	}
 	for _, e := range res {

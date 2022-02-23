@@ -806,6 +806,7 @@ func (i *Inspector) SchedulerEntries() ([]*SchedulerEntry, error) {
 		return nil, err
 	}
 	if len(res) == 0 {
+		fmt.Println("search entries from mem")
 		for _, entry := range i.cron.Entries() {
 			job := entry.Job.(*enqueueJob)
 			var opts []Option
@@ -825,6 +826,7 @@ func (i *Inspector) SchedulerEntries() ([]*SchedulerEntry, error) {
 				Prev: entry.Prev,
 			})
 		}
+		fmt.Printf("entries lens is %d \n", len(res))
 	} else {
 		for _, e := range res {
 			task := NewTask(e.Type, e.Payload)

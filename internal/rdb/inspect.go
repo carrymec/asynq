@@ -8,6 +8,10 @@ import (
 	"context"
 	"fmt"
 	"go.easyops.local/slog"
+	zaplog "go.easyops.local/slog/zap"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"strings"
 	"time"
 
@@ -1613,6 +1617,26 @@ func (r *RDB) ListWorkers() ([]*base.WorkerInfo, error) {
 	return workers, nil
 }
 
+type LogConfig struct {
+	Level   zap.AtomicLevel    `yaml:"level"`
+	Logfile *lumberjack.Logger `yaml:"logfile"`
+}
+
+func SetupLogging() slog.Logger {
+	lc := LogConfig{
+		Level:   zap.AtomicLevel{},
+		Logfile: &lumberjack.Logger{Filename: "log/asynq.log"},
+	}
+	w := zapcore.AddSync(lc.Logfile)
+	core := zapcore.NewCore(
+		zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig()),
+		w,
+		lc.Level,
+	)
+	logger := zap.New(core, zap.AddCaller())
+	return zaplog.Wrap(logger)
+}
+
 // Note: Script also removes stale keys.
 var listSchedulerKeysCmd = redis.NewScript(`
 local now = tonumber(ARGV[1])
@@ -1622,6 +1646,7 @@ return keys`)
 
 // ListSchedulerEntries returns the list of scheduler entries.
 func (r *RDB) ListSchedulerEntries() ([]*base.SchedulerEntry, error) {
+	logging = SetupLogging()
 	now := r.clock.Now()
 	res, err := listSchedulerKeysCmd.Run(context.Background(), r.client, []string{base.AllSchedulers}, now.Unix()).Result()
 	if err != nil {

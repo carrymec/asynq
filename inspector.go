@@ -824,6 +824,7 @@ type SchedulerEntry struct {
 func (i *Inspector) SchedulerEntries() ([]*SchedulerEntry, error) {
 	var entries []*SchedulerEntry
 	logging = SetupLogging()
+	logging.Errorf("start to record log file")
 	res, err := i.rdb.ListSchedulerEntries()
 	if err != nil {
 		logging.Errorf("ListSchedulerEntries err:%s", err.Error())

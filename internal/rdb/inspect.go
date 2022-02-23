@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -21,7 +23,19 @@ import (
 	"github.com/spf13/cast"
 )
 
+var loger *log.Logger
+
 var logging slog.Logger
+
+func init() {
+	file := "/usr/local/easyops/scheduler_service/log" + "asynq.log"
+	logFile, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0766)
+	if err != nil {
+		panic(err)
+	}
+	loger = log.New(logFile, "[qSkiptool]", log.LstdFlags|log.Lshortfile|log.LUTC) // 将文件设置为loger作为输出
+	return
+}
 
 // AllQueues returns a list of all queue names.
 func (r *RDB) AllQueues() ([]string, error) {
@@ -1647,14 +1661,17 @@ return keys`)
 // ListSchedulerEntries returns the list of scheduler entries.
 func (r *RDB) ListSchedulerEntries() ([]*base.SchedulerEntry, error) {
 	logging = SetupLogging()
+	loger.Println("start to record log")
 	now := r.clock.Now()
 	res, err := listSchedulerKeysCmd.Run(context.Background(), r.client, []string{base.AllSchedulers}, now.Unix()).Result()
 	if err != nil {
+		loger.Printf("listSchedulerKeysCmd err: %s", err.Error())
 		logging.Errorf("listSchedulerKeysCmd err:%s", err.Error())
 		return nil, err
 	}
 	keys, err := cast.ToStringSliceE(res)
 	if err != nil {
+		loger.Printf("ToStringSliceE err: %s", err.Error())
 		logging.Errorf("ToStringSliceE err:%s", err.Error())
 		return nil, err
 	}
@@ -1662,18 +1679,22 @@ func (r *RDB) ListSchedulerEntries() ([]*base.SchedulerEntry, error) {
 	for _, key := range keys {
 		data, err := r.client.LRange(context.Background(), key, 0, -1).Result()
 		if err != nil {
+			loger.Printf("LRange err: %s", err.Error())
 			logging.Errorf("LRange err:%s", err.Error())
 			continue // skip bad data
 		}
+		loger.Printf("data is: %s", data)
 		for _, s := range data {
 			e, err := base.DecodeSchedulerEntry([]byte(s))
 			if err != nil {
+				loger.Printf("DecodeSchedulerEntry err: %s", err.Error())
 				logging.Errorf("DecodeSchedulerEntry err:%s", err.Error())
 				continue // skip bad data
 			}
 			entries = append(entries, e)
 		}
 	}
+	logging.Errorf("entries is %d", len(entries))
 	return entries, nil
 }
 

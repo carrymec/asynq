@@ -27,14 +27,14 @@ type Inspector struct {
 }
 
 // New returns a new instance of Inspector.
-func NewInspector(r RedisConnOpt, s *Scheduler) *Inspector {
+func NewInspector(r RedisConnOpt, cron *cron.Cron) *Inspector {
 	c, ok := r.MakeRedisClient().(redis.UniversalClient)
 	if !ok {
 		panic(fmt.Sprintf("inspeq: unsupported RedisConnOpt type %T", r))
 	}
 	return &Inspector{
 		rdb:  rdb.NewRDB(c),
-		cron: s.GetCron(),
+		cron: cron,
 	}
 }
 

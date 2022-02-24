@@ -799,54 +799,28 @@ type SchedulerEntry struct {
 // currently running schedulers.
 func (i *Inspector) SchedulerEntries() ([]*SchedulerEntry, error) {
 	var entries []*SchedulerEntry
-	fmt.Printf("start to record log file")
-	res, err := i.rdb.ListSchedulerEntries()
-	if err != nil {
-		fmt.Errorf("ListSchedulerEntries err:%s", err.Error())
-		return nil, err
-	}
-	if len(res) == 0 {
-		fmt.Println("search entries from mem")
-		for _, entry := range i.cron.Entries() {
-			job := entry.Job.(*enqueueJob)
-			var opts []Option
-			opt := stringifyOptions(job.opts)
-			for _, s := range opt {
-				if o, err := parseOption(s); err == nil {
-					// ignore bad data
-					opts = append(opts, o)
-				}
+	fmt.Printf("start to read mem")
+
+	for _, entry := range i.cron.Entries() {
+		job := entry.Job.(*enqueueJob)
+		var opts []Option
+		opt := stringifyOptions(job.opts)
+		for _, s := range opt {
+			if o, err := parseOption(s); err == nil {
+				// ignore bad data
+				opts = append(opts, o)
 			}
-			entries = append(entries, &SchedulerEntry{
-				ID:   job.id.String(),
-				Spec: job.cronspec,
-				Task: job.task,
-				Opts: opts,
-				Next: entry.Next,
-				Prev: entry.Prev,
-			})
 		}
-		fmt.Printf("entries lens is %d \n", len(res))
-	} else {
-		for _, e := range res {
-			task := NewTask(e.Type, e.Payload)
-			var opts []Option
-			for _, s := range e.Opts {
-				if o, err := parseOption(s); err == nil {
-					// ignore bad data
-					opts = append(opts, o)
-				}
-			}
-			entries = append(entries, &SchedulerEntry{
-				ID:   e.ID,
-				Spec: e.Spec,
-				Task: task,
-				Opts: opts,
-				Next: e.Next,
-				Prev: e.Prev,
-			})
-		}
+		entries = append(entries, &SchedulerEntry{
+			ID:   job.id.String(),
+			Spec: job.cronspec,
+			Task: job.task,
+			Opts: opts,
+			Next: entry.Next,
+			Prev: entry.Prev,
+		})
 	}
+	fmt.Println(len(entries))
 	return entries, nil
 }
 

@@ -15,26 +15,22 @@ import (
 	"github.com/hibiken/asynq/internal/base"
 	"github.com/hibiken/asynq/internal/errors"
 	"github.com/hibiken/asynq/internal/rdb"
-	"github.com/robfig/cron/v3"
 )
 
 // Inspector is a client interface to inspect and mutate the state of
 // queues and tasks.
 type Inspector struct {
-	rdb       *rdb.RDB
-	cron      *cron.Cron
-	scheduler *Scheduler
+	rdb *rdb.RDB
 }
 
 // New returns a new instance of Inspector.
-func NewInspector(r RedisConnOpt, cron *cron.Cron) *Inspector {
+func NewInspector(r RedisConnOpt) *Inspector {
 	c, ok := r.MakeRedisClient().(redis.UniversalClient)
 	if !ok {
 		panic(fmt.Sprintf("inspeq: unsupported RedisConnOpt type %T", r))
 	}
 	return &Inspector{
-		rdb:  rdb.NewRDB(c),
-		cron: cron,
+		rdb: rdb.NewRDB(c),
 	}
 }
 
@@ -800,28 +796,30 @@ type SchedulerEntry struct {
 // currently running schedulers.
 func (i *Inspector) SchedulerEntries() ([]*SchedulerEntry, error) {
 	var entries []*SchedulerEntry
-	fmt.Printf("start to read mem")
+	res, err := i.rdb.ListSchedulerEntries()
+	if err != nil {
+		return nil, err
+	}
 
-	for _, entry := range i.cron.Entries() {
-		job := entry.Job.(*enqueueJob)
+	for _, e := range res {
+		task := NewTask(e.Type, e.Payload)
 		var opts []Option
-		opt := stringifyOptions(job.opts)
-		for _, s := range opt {
+		for _, s := range e.Opts {
 			if o, err := parseOption(s); err == nil {
 				// ignore bad data
 				opts = append(opts, o)
 			}
 		}
 		entries = append(entries, &SchedulerEntry{
-			ID:   job.id.String(),
-			Spec: job.cronspec,
-			Task: job.task,
+			ID:   e.ID,
+			Spec: e.Spec,
+			Task: task,
 			Opts: opts,
-			Next: entry.Next,
-			Prev: entry.Prev,
+			Next: e.Next,
+			Prev: e.Prev,
 		})
 	}
-	fmt.Println(len(entries))
+
 	return entries, nil
 }
 

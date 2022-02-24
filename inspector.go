@@ -31,9 +31,10 @@ func NewInspector(r RedisConnOpt) *Inspector {
 	if !ok {
 		panic(fmt.Sprintf("inspeq: unsupported RedisConnOpt type %T", r))
 	}
+	loc, _ := time.LoadLocation("Asia/Shanghai")
 	return &Inspector{
 		rdb:  rdb.NewRDB(c),
-		cron: cron.New(cron.WithLocation(time.Local)),
+		cron: cron.New(cron.WithLocation(loc)),
 	}
 }
 

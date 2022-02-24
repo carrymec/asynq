@@ -43,6 +43,10 @@ type Scheduler struct {
 	idmap map[string]cron.EntryID
 }
 
+func (s *Scheduler) GetCron() *cron.Cron {
+	return s.cron
+}
+
 // NewScheduler returns a new Scheduler instance given the redis connection option.
 // The parameter opts is optional, defaults will be used if opts is set to nil
 func NewScheduler(r RedisConnOpt, opts *SchedulerOpts) *Scheduler {

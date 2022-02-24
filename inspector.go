@@ -21,20 +21,20 @@ import (
 // Inspector is a client interface to inspect and mutate the state of
 // queues and tasks.
 type Inspector struct {
-	rdb  *rdb.RDB
-	cron *cron.Cron
+	rdb       *rdb.RDB
+	cron      *cron.Cron
+	scheduler *Scheduler
 }
 
 // New returns a new instance of Inspector.
-func NewInspector(r RedisConnOpt) *Inspector {
+func NewInspector(r RedisConnOpt, s *Scheduler) *Inspector {
 	c, ok := r.MakeRedisClient().(redis.UniversalClient)
 	if !ok {
 		panic(fmt.Sprintf("inspeq: unsupported RedisConnOpt type %T", r))
 	}
-	loc, _ := time.LoadLocation("Asia/Shanghai")
 	return &Inspector{
 		rdb:  rdb.NewRDB(c),
-		cron: cron.New(cron.WithLocation(loc)),
+		cron: s.GetCron(),
 	}
 }
 

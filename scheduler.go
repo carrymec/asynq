@@ -166,6 +166,7 @@ func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entry
 		return "", err
 	}
 	s.mu.Lock()
+	s.logger.Errorf("jobId is: %s,cronId is: %s", job.id.String(), cronID)
 	s.idmap[job.id.String()] = cronID
 	s.mu.Unlock()
 	return job.id.String(), nil

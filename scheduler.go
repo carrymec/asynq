@@ -169,6 +169,7 @@ func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entry
 	s.logger.Errorf("jobId is: %s,cronId is: %s", job.id.String(), cronID)
 	s.idmap[job.id.String()] = cronID
 	s.mu.Unlock()
+	s.logger.Errorf("insert asynq idmap is: %s", s.idmap)
 	return job.id.String(), nil
 }
 
@@ -177,6 +178,9 @@ func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entry
 func (s *Scheduler) Unregister(entryID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	s.logger.Errorf("jobId is: %s", entryID)
+	s.logger.Errorf("delete asynq idmap is: %s", s.idmap)
 	cronID, ok := s.idmap[entryID]
 	if !ok {
 		return fmt.Errorf("asynq: no scheduler entry found")

@@ -43,10 +43,6 @@ type Scheduler struct {
 	idmap map[string]cron.EntryID
 }
 
-func (s *Scheduler) GetCron() *cron.Cron {
-	return s.cron
-}
-
 // NewScheduler returns a new Scheduler instance given the redis connection option.
 // The parameter opts is optional, defaults will be used if opts is set to nil
 func NewScheduler(r RedisConnOpt, opts *SchedulerOpts) *Scheduler {
@@ -116,7 +112,7 @@ type SchedulerOpts struct {
 
 // enqueueJob encapsulates the job of enqueing a task and recording the event.
 type enqueueJob struct {
-	id         uuid.UUID
+	id         string
 	cronspec   string
 	task       *Task
 	opts       []Option
@@ -141,7 +137,7 @@ func (j *enqueueJob) Run() {
 		TaskID:     info.ID,
 		EnqueuedAt: time.Now().In(j.location),
 	}
-	err = j.rdb.RecordSchedulerEnqueueEvent(j.id.String(), event)
+	err = j.rdb.RecordSchedulerEnqueueEvent(j.id, event)
 	if err != nil {
 		j.logger.Errorf("scheduler could not record enqueue event of enqueued task %+v: %v", j.task, err)
 	}
@@ -151,7 +147,7 @@ func (j *enqueueJob) Run() {
 // It returns an ID of the newly registered entry.
 func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entryID string, err error) {
 	job := &enqueueJob{
-		id:         uuid.New(),
+		id:         task.taskId,
 		cronspec:   cronspec,
 		task:       task,
 		opts:       opts,
@@ -166,11 +162,9 @@ func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entry
 		return "", err
 	}
 	s.mu.Lock()
-	s.logger.Errorf("jobId is: %s,cronId is: %s", job.id.String(), cronID)
-	s.idmap[job.id.String()] = cronID
+	s.idmap[job.id] = cronID
 	s.mu.Unlock()
-	s.logger.Errorf("insert asynq idmap is: %s", s.idmap)
-	return job.id.String(), nil
+	return job.id, nil
 }
 
 // Unregister removes a registered entry by entry ID.
@@ -178,9 +172,6 @@ func (s *Scheduler) Register(cronspec string, task *Task, opts ...Option) (entry
 func (s *Scheduler) Unregister(entryID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	s.logger.Errorf("jobId is: %s", entryID)
-	s.logger.Errorf("delete asynq idmap is: %s", s.idmap)
 	cronID, ok := s.idmap[entryID]
 	if !ok {
 		return fmt.Errorf("asynq: no scheduler entry found")
@@ -268,14 +259,13 @@ func (s *Scheduler) runHeartbeater() {
 	}
 }
 
-// TODO TTL 设置为一分钟
 // beat writes a snapshot of entries to redis.
 func (s *Scheduler) beat() {
 	var entries []*base.SchedulerEntry
 	for _, entry := range s.cron.Entries() {
 		job := entry.Job.(*enqueueJob)
 		e := &base.SchedulerEntry{
-			ID:      job.id.String(),
+			ID:      job.id,
 			Spec:    job.cronspec,
 			Type:    job.task.Type(),
 			Payload: job.task.Payload(),
@@ -302,33 +292,8 @@ func stringifyOptions(opts []Option) []string {
 func (s *Scheduler) clearHistory() {
 	for _, entry := range s.cron.Entries() {
 		job := entry.Job.(*enqueueJob)
-		if err := s.rdb.ClearSchedulerHistory(job.id.String()); err != nil {
-			s.logger.Warnf("Could not clear scheduler history for entry %q: %v", job.id.String(), err)
+		if err := s.rdb.ClearSchedulerHistory(job.id); err != nil {
+			s.logger.Warnf("Could not clear scheduler history for entry %q: %v", job.id, err)
 		}
 	}
-}
-
-func (s *Scheduler) GetEntries() ([]*SchedulerEntry, error) {
-	var entries []*SchedulerEntry
-
-	for _, entry := range s.cron.Entries() {
-		job := entry.Job.(*enqueueJob)
-		var opts []Option
-		opt := stringifyOptions(job.opts)
-		for _, s := range opt {
-			if o, err := parseOption(s); err == nil {
-				// ignore bad data
-				opts = append(opts, o)
-			}
-		}
-		entries = append(entries, &SchedulerEntry{
-			ID:   job.id.String(),
-			Spec: job.cronspec,
-			Task: job.task,
-			Opts: opts,
-			Next: entry.Next,
-			Prev: entry.Prev,
-		})
-	}
-	return entries, nil
 }

@@ -22,6 +22,8 @@ type Task struct {
 	// typename indicates the type of task to be performed.
 	typename string
 
+	taskId string
+
 	// payload holds data needed to perform the task.
 	payload []byte
 
@@ -43,9 +45,10 @@ func (t *Task) ResultWriter() *ResultWriter { return t.w }
 
 // NewTask returns a new Task given a type name and payload data.
 // Options can be passed to configure task processing behavior.
-func NewTask(typename string, payload []byte, opts ...Option) *Task {
+func NewTask(typename, taskId string, payload []byte, opts ...Option) *Task {
 	return &Task{
 		typename: typename,
+		taskId:   taskId,
 		payload:  payload,
 		opts:     opts,
 	}
